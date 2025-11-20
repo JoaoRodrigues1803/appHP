@@ -7,6 +7,7 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
+import supabase from '../db/dbConfig';
 
 export const CadastrarUsuario: React.FC = () => {
   const [nome, setNome] = useState('');
@@ -23,6 +24,10 @@ export const CadastrarUsuario: React.FC = () => {
       toast.error('Preencha todos os campos');
       return;
     }
+    
+    //criando funcao de cadastro no supabase com autenticação
+    
+     
 
     cadastrarUsuario({ nome, telefone, email });
     toast.success('Usuário cadastrado com sucesso!');
