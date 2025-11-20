@@ -17,7 +17,7 @@ export const CadastrarUsuario: React.FC = () => {
   const { cadastrarUsuario } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
     
     if (!nome || !telefone || !email || !senha) {
@@ -26,12 +26,33 @@ export const CadastrarUsuario: React.FC = () => {
     }
     
     //criando funcao de cadastro no supabase com autenticação
+         const { data, error } = await supabase.auth.signUp({
+            email,
+            password: senha,
+         });
     
-     
-
-    cadastrarUsuario({ nome, telefone, email });
-    toast.success('Usuário cadastrado com sucesso!');
-    navigate('/');
+        if (error) {
+          toast.error(`Erro ao cadastrar: ${error.message}`);
+          return;
+        }
+    
+        // Salva dados adicionais do perfil em uma tabela separada (ex: "profiles")
+        const userId = data?.user?.id;
+        if (userId) {
+          const { error: insertError } = await supabase
+            .from('usuario')
+            .insert([{ nome, telefone, email, senha }]);
+    
+          if (insertError) {
+            toast.error(`Erro ao salvar perfil: ${insertError.message}`);
+            return;
+          }
+        }
+        
+        
+        toast.success('Usuário cadastrado com sucesso!');
+        navigate('/');
+        cadastrarUsuario({ nome, telefone, email });
   };
 
   return (

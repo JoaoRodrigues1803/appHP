@@ -17,12 +17,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './ui/alert-dialog';
+import supabase from '../db/dbConfig';
+import { useEffect } from 'react';
 
-export const ListarPets: React.FC = () => {
-  const { pets, deletarPet } = useApp();
+export const ListarPets = () => {
   const navigate = useNavigate();
 
-  const handleDelete = (id: string, nome: string) => {
+  // ✅ Aqui sim — hooks devem estar dentro do componente
+  const { pets, carregarPets, deletarPet } = useApp();
+
+  useEffect(() => {
+    carregarPets();
+  }, []);
+
+  const handleDelete = async (id: string, nome: string) => {
     deletarPet(id);
     toast.success(`${nome} foi removido da lista`);
   };
@@ -66,7 +74,7 @@ export const ListarPets: React.FC = () => {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    {pet.tipo === 'cachorro' ? (
+                    {pet.tipo_animal === 'cachorro' ? (
                       <Dog className="h-8 w-8 text-blue-500" />
                     ) : (
                       <Cat className="h-8 w-8 text-purple-500" />
@@ -115,8 +123,8 @@ export const ListarPets: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge variant={pet.vacinado ? 'default' : 'secondary'}>
-                    {pet.vacinado ? '✓' : '✗'} Vacinado
+                  <Badge variant={pet.vacinas ? 'default' : 'secondary'}>
+                    {pet.vacinas ? '✓' : '✗'} Vacinado
                   </Badge>
                   <Badge variant={pet.vermifugado ? 'default' : 'secondary'}>
                     {pet.vermifugado ? '✓' : '✗'} Vermifugado

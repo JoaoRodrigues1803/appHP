@@ -5,6 +5,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useApp } from '../context/AppContext';
 import { Button } from './ui/button';
 import { useNavigate } from 'react-router-dom';
+import supabase from '../db/dbConfig';
 
 export const HomePage: React.FC = () => {
   const { isLoggedIn } = useApp();

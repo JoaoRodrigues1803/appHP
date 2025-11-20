@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
+import supabase from '../db/dbConfig';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -13,22 +14,35 @@ export const LoginPage: React.FC = () => {
   const { login } = useApp();
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !senha) {
-      toast.error('Preencha todos os campos');
+  const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  if (!email || !senha) {
+    toast.error('Preencha todos os campos');
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: senha,
+    });
+
+    if (error) {
+      toast.error('Erro ao fazer login: ' + error.message);
       return;
     }
 
-    const sucesso = login(email, senha);
-    if (sucesso) {
-      toast.success('Login realizado com sucesso!');
-      navigate('/');
-    } else {
-      toast.error('Credenciais inválidas');
-    }
-  };
+    // 🔥 Login do Supabase DEU CERTO
+    toast.success('Login realizado com sucesso!');
+    login();
+    navigate('/');
+
+  } catch (err) {
+    toast.error('Erro ao fazer login');
+    console.error(err);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">

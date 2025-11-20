@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
 import { Pet } from '../types';
+import supabase from '../db/dbConfig';
+import { Usuario } from '../types';
 
 export const VincularPet: React.FC = () => {
   const [tipo, setTipo] = useState<'gato' | 'cachorro'>('cachorro');
@@ -22,37 +24,73 @@ export const VincularPet: React.FC = () => {
   const [vermifugado, setVermifugado] = useState('sim');
   const [castrado, setCastrado] = useState('sim');
   const [mac, setMac] = useState('');
+  const { usuario } = useApp();
 
-  const { adicionarPet } = useApp();
+  // const { adicionarPet } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!nome || !raca || !dataNascimento || !peso) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    const novoPet: Omit<Pet, 'id'> = {
-      tipo,
-      nome,
-      raca,
-      pelagem,
-      dataNascimento,
-      porte,
-      peso: parseFloat(peso),
-      sexo,
-      vacinado: vacinado === 'sim',
-      vermifugado: vermifugado === 'sim',
-      castrado: castrado === 'sim',
-      mac: mac || undefined,
-    };
+  if (!usuario) {
+    toast.error("Erro: nenhum usuário logado.");
+    return;
+  }
 
-    adicionarPet(novoPet);
-    toast.success(`${nome} foi cadastrado com sucesso!`);
-    navigate('/listar-pets');
+  // 1️⃣ Buscar o ID do usuário na tabela usuarios
+  const { data: userDB, error: userError } = await supabase
+    .from("usuario")
+    .select("id")
+    .eq("auth_id", usuario.id)        // ← auth_id vindo do login
+    .single();
+
+  if (userError || !userDB) {
+    toast.error("Erro ao encontrar o usuário no banco de dados!");
+    console.log(userError);
+    return;
+  }
+
+  const tutorId = userDB.id; // este é o ID da tabela "usuarios"
+
+  if (!nome || !raca || !dataNascimento || !peso) {
+    toast.error("Preencha todos os campos obrigatórios");
+    return;
+  }
+
+  const novoPet = {
+    tutor_id: tutorId,
+    tutor_auth: usuario.id,
+    tipo_animal: tipo,
+    nome,
+    raca,
+    pelagem,
+    data_nascimento: dataNascimento,
+    porte,
+    peso: parseFloat(peso),
+    sexo,
+    vacinas: vacinado === 'sim',
+    vermifugado: vermifugado === 'sim',
+    castrado: castrado === 'sim',
+    mac_placa: mac || null,
   };
+  console.log("Usuário logado:", usuario);
+console.log("ID do usuário:", usuario?.id);
+console.log("Novo pet a ser inserido:", novoPet);
+
+  const { data, error } = await supabase
+    .from("pet")
+    .insert(novoPet)
+    .select();
+
+  if (error) {
+    toast.error("Erro ao salvar pet: " + error.message);
+    return;
+  }
+
+
+  toast.success(`${nome} foi cadastrado com sucesso!`);
+  navigate("/listar-pets");
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">

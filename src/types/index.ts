@@ -1,14 +1,14 @@
 export interface Pet {
   id: string;
-  tipo: 'gato' | 'cachorro';
+  tipo_animal: 'gato' | 'cachorro';
   nome: string;
   raca: string;
   pelagem: 'Curta' | 'Longa' | 'Média';
-  dataNascimento: string;
+  data_nascimento: string;
   porte: 'Pequeno' | 'Médio' | 'Grande';
   peso: number;
   sexo: 'Masculino' | 'Feminino';
-  vacinado: boolean;
+  vacinas: boolean;
   vermifugado: boolean;
   castrado: boolean;
   mac?: string;

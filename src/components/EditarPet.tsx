@@ -8,40 +8,47 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
 import { Pet } from '../types';
+import supabase from '../db/dbConfig';
+
+ 
 
 export const EditarPet: React.FC = () => {
+  
   const { id } = useParams<{ id: string }>();
+  const petId = Number(id); // converte para number
   const { pets, atualizarPet } = useApp();
   const navigate = useNavigate();
 
-  const pet = pets.find(p => p.id === id);
+ const pet = pets.find((p) => Number(p.id) === petId);
+
 
   const [tipo, setTipo] = useState<'gato' | 'cachorro'>('cachorro');
   const [nome, setNome] = useState('');
   const [raca, setRaca] = useState('');
   const [pelagem, setPelagem] = useState<'Curta' | 'Longa' | 'Média'>('Curta');
-  const [dataNascimento, setDataNascimento] = useState('');
+  const [data_nascimento, setDataNascimento] = useState('');
   const [porte, setPorte] = useState<'Pequeno' | 'Médio' | 'Grande'>('Médio');
   const [peso, setPeso] = useState('');
   const [sexo, setSexo] = useState<'Masculino' | 'Feminino'>('Masculino');
-  const [vacinado, setVacinado] = useState('sim');
-  const [vermifugado, setVermifugado] = useState('sim');
-  const [castrado, setCastrado] = useState('sim');
+  const [vacinas, setVacinas] = useState<'sim' | 'nao'>('sim');
+  const [vermifugado, setVermifugado] = useState<'sim' | 'nao'>('sim');
+  const [castrado, setCastrado] = useState<'sim' | 'nao'>('sim');
   const [mac, setMac] = useState('');
 
   useEffect(() => {
     if (pet) {
-      setTipo(pet.tipo);
+      setTipo(pet.tipo_animal);
       setNome(pet.nome);
       setRaca(pet.raca);
       setPelagem(pet.pelagem);
-      setDataNascimento(pet.dataNascimento);
+      setDataNascimento(pet.data_nascimento.split('T')[0]);
       setPorte(pet.porte);
       setPeso(pet.peso.toString());
       setSexo(pet.sexo);
-      setVacinado(pet.vacinado ? 'sim' : 'nao');
+      setVacinas(pet.vacinas ? 'sim' : 'nao');
       setVermifugado(pet.vermifugado ? 'sim' : 'nao');
       setCastrado(pet.castrado ? 'sim' : 'nao');
+
       setMac(pet.mac || '');
     }
   }, [pet]);
@@ -61,31 +68,31 @@ export const EditarPet: React.FC = () => {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!nome || !raca || !dataNascimento || !peso) {
+    if (!nome || !raca || !data_nascimento || !peso) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
     const petAtualizado: Pet = {
       id: pet.id,
-      tipo,
+      tipo_animal: tipo,
       nome,
       raca,
       pelagem,
-      dataNascimento,
+      data_nascimento: data_nascimento,
       porte,
       peso: parseFloat(peso),
       sexo,
-      vacinado: vacinado === 'sim',
+      vacinas: vacinas === 'sim',
       vermifugado: vermifugado === 'sim',
       castrado: castrado === 'sim',
       mac: mac || undefined,
     };
 
-    atualizarPet(petAtualizado);
+    await atualizarPet(petAtualizado);
     toast.success(`${nome} foi atualizado com sucesso!`);
     navigate('/listar-pets');
   };
@@ -153,7 +160,7 @@ export const EditarPet: React.FC = () => {
                   <Input
                     id="dataNascimento"
                     type="date"
-                    value={dataNascimento}
+                    value={data_nascimento}
                     onChange={(e) => setDataNascimento(e.target.value)}
                   />
                 </div>
@@ -199,7 +206,7 @@ export const EditarPet: React.FC = () => {
 
                 <div>
                   <Label htmlFor="vacinado">Vacinado</Label>
-                  <Select value={vacinado} onValueChange={setVacinado}>
+                  <Select value={vacinas} onValueChange={(value) => setVacinas(value as 'sim' | 'nao')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -212,7 +219,7 @@ export const EditarPet: React.FC = () => {
 
                 <div>
                   <Label htmlFor="vermifugado">Vermifugado</Label>
-                  <Select value={vermifugado} onValueChange={setVermifugado}>
+                  <Select value={vermifugado} onValueChange={(value) => setVermifugado(value as 'sim' | 'nao')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -225,7 +232,7 @@ export const EditarPet: React.FC = () => {
 
                 <div>
                   <Label htmlFor="castrado">Castrado</Label>
-                  <Select value={castrado} onValueChange={setCastrado}>
+                  <Select value={castrado} onValueChange={(value) => setCastrado(value as 'sim' | 'nao')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
