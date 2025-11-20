@@ -11,7 +11,7 @@ export interface Pet {
   vacinas: boolean;
   vermifugado: boolean;
   castrado: boolean;
-  mac?: string;
+  mac_placa: string;
 }
 
 export interface Usuario {

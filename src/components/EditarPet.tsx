@@ -49,7 +49,7 @@ export const EditarPet: React.FC = () => {
       setVermifugado(pet.vermifugado ? 'sim' : 'nao');
       setCastrado(pet.castrado ? 'sim' : 'nao');
 
-      setMac(pet.mac || '');
+      setMac(pet.mac_placa || '');
     }
   }, [pet]);
 
@@ -89,7 +89,7 @@ export const EditarPet: React.FC = () => {
       vacinas: vacinas === 'sim',
       vermifugado: vermifugado === 'sim',
       castrado: castrado === 'sim',
-      mac: mac || undefined,
+      mac_placa: mac ,
     };
 
     await atualizarPet(petAtualizado);

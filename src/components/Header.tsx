@@ -72,7 +72,7 @@ export const Header: React.FC = () => {
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
               <span className="text-2xl">🐾</span>
             </div>
-            <span className="font-semibold text-xl">PetCare</span>
+            <span className="font-semibold text-xl">HealthPet</span>
           </div>
         </div>
 

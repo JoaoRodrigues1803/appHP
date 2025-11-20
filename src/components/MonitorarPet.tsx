@@ -6,48 +6,112 @@ import { Badge } from './ui/badge';
 import { ArrowLeft, Heart, MapPin, Activity as ActivityIcon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import supabase from '../db/dbConfig';
 
 export const MonitorarPet: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { pets } = useApp();
   const navigate = useNavigate();
-  const pet = pets.find(p => p.id === id);
+  const { pets } = useApp();
 
-  const [batimentoAtual, setBatimentoAtual] = useState(85);
-  const [historico, setHistorico] = useState<{ tempo: string; batimento: number }[]>([]);
+  const petId = Number(id); // 🔥 converte id para number compatível com banco
+  const pet = pets.find(p => Number(p.id) === petId);
 
-  useEffect(() => {
-    // Gerar dados históricos iniciais
-    const horaAtual = new Date();
-  const dados: { tempo: string; batimento: number }[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const tempo = new Date(horaAtual.getTime() - i * 5 * 60000);
-      dados.push({
-        tempo: tempo.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        batimento: Math.floor(Math.random() * 20) + 75,
-      });
+  const [batimentoAtual, setBatimentoAtual] = useState<number>(0);
+  const [localizacao, setLocalizacao] = useState<{ latitude?: number; longitude?: number }>({});
+  const [historico, setHistorico] = useState<Array<{ tempo: string; batimento: number }>>([]);
+  const [historicoLocalizacao, setHistoricoLocalizacao] = useState<
+  Array<{ tempo: string; latitude: number; longitude: number }>
+>([]);
+  const [ultimaGravacao, setUltimaGravacao] = useState<number | null>(null);
+
+useEffect(() => {
+  if (!pet?.mac_placa) return;
+
+  let mounted = true;
+  let interval: any;
+
+  const buscarDados = async () => {
+    const { data, error } = await supabase
+      .from("dados_sensor")
+      .select("valores, data")
+      .eq("mac_placa", pet.mac_placa)
+      .order("data", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error("Erro ao buscar dados do sensor:", error);
+      return;
     }
-    setHistorico(dados);
 
-    // Simular atualização em tempo real
-    const interval = setInterval(() => {
-      const novoBatimento = Math.floor(Math.random() * 20) + 75;
-      setBatimentoAtual(novoBatimento);
-      
-      setHistorico(prev => {
-        const novoHistorico: { tempo: string; batimento: number }[] = [
-          ...prev.slice(1),
+    if (!mounted || !data?.length) return;
+
+    // Parse segura do JSON
+    let valores = data[0].valores;
+    if (typeof valores === "string") {
+      try {
+        valores = JSON.parse(valores);
+      } catch (err) {
+        console.error("Erro ao parsear JSON:", err);
+        return;
+      }
+    }
+
+    // Atualizar valores principais
+    setBatimentoAtual(valores.frequencia);
+    setLocalizacao({
+      latitude: valores.latitude,
+      longitude: valores.longitude,
+    });
+    // Adicionar batimentos ao histórico (últimos 12 pontos)
+    setHistorico(prev => [
+      ...prev.slice(-11),
+      {
+        tempo: new Date(data[0].data).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        batimento: valores.frequencia,
+      },
+    ]);
+
+    // --- Lógica dos 5 minutos ---
+    const agora = Date.now();
+
+    setUltimaGravacao(prevUltima => {
+      if (!prevUltima || agora - prevUltima >= 1 * 60 * 1000) {
+        const tempo = new Date(data[0].data).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+
+        });
+
+        setHistoricoLocalizacao(prev => [
           {
-            tempo: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            batimento: novoBatimento,
+            tempo,
+            latitude: valores.latitude,
+            longitude: valores.longitude,
           },
-        ];
-        return novoHistorico;
-      });
-    }, 3000);
+          ...prev.slice(0, 19)
+        ]);
 
-    return () => clearInterval(interval);
-  }, []);
+        return agora; // atualiza o timestamp
+      }
+
+      return prevUltima;
+    });
+  };
+
+  buscarDados();
+  interval = setInterval(buscarDados, 30000);
+
+  return () => {
+    mounted = false;
+    clearInterval(interval);
+  };
+},  [petId]);
+
+  
 
   if (!pet) {
     return (
@@ -64,7 +128,12 @@ export const MonitorarPet: React.FC = () => {
     );
   }
 
+  
+  
   const statusBatimento = batimentoAtual >= 60 && batimentoAtual <= 100 ? 'normal' : 'alerta';
+
+  
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
@@ -112,14 +181,33 @@ export const MonitorarPet: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-48 bg-gray-200 rounded-lg flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-100 to-blue-100 opacity-50"></div>
-                <div className="relative text-center z-10">
-                  <MapPin className="h-12 w-12 text-green-500 mx-auto mb-2 animate-bounce" />
-                  <p className="text-sm text-gray-700">Rua das Flores, 123</p>
-                  <p className="text-xs text-gray-500">São Paulo, SP</p>
-                  <Badge className="mt-2 bg-green-500">Em Casa</Badge>
-                </div>
+              <div className="relative text-center z-10">
+                <MapPin className="h-12 w-12 text-green-500 mx-auto mb-2 animate-bounce" />
+                {localizacao.latitude && localizacao.longitude ? (
+                  <>
+                    <p className="text-sm text-gray-700">
+                      Lat: {localizacao.latitude.toFixed(6)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Lng: {localizacao.longitude.toFixed(6)}
+                    </p>
+
+                    <div className="mt-3 w-full h-40 rounded-lg overflow-hidden border">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={`https://www.google.com/maps?q=${localizacao.latitude},${localizacao.longitude}&z=16&output=embed`}
+                      ></iframe>
+                    </div>
+
+                    <Badge className="mt-2 bg-blue-500">Posição Atual</Badge>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Aguardando dados...</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -152,8 +240,40 @@ export const MonitorarPet: React.FC = () => {
               </ResponsiveContainer>
             </div>
             <div className="mt-4 text-center text-sm text-gray-500">
-              Atualização em tempo real a cada 3 segundos
+              Atualização em tempo real a cada 30 segundos
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-green-500" />
+              Histórico de Posições
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            {historicoLocalizacao.length === 0 ? (
+              <p className="text-sm text-gray-500">Nenhuma posição registrada ainda...</p>
+            ) : (
+              <div className="space-y-4">
+                {historicoLocalizacao.map((pos, index) => (
+                  <div key={index} className="relative pl-6 border-l border-gray-200">
+                    {/* Marcador */}
+                    <div className="absolute left-[-6px] top-1 w-3 h-3 bg-green-500 rounded-full shadow" />
+
+                    <p className="text-sm font-medium text-gray-800">
+                      {pos.tempo}
+                    </p>
+
+                    <p className="text-xs text-gray-500">
+                      {pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

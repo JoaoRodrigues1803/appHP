@@ -14,6 +14,11 @@ interface AppContextType {
   atualizarPet: (pet: Pet) => void;
   deletarPet: (id: string) => void;
   carregarPets: (authId?: string) => Promise<void>;
+  carregarDadosSensor: (macPlaca: string) => Promise<{
+    frequencia: any;
+    latitude: any;
+    longitude: any;
+  } | null>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -154,6 +159,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     login();
   }, []);
   
+  //buscar dados sensor 
+  const carregarDadosSensor = async (macPlaca: string) => {
+  try {
+    const { data, error } = await supabase
+      .from("dados_sensor")
+      .select("valores")
+      .eq("mac_placa", macPlaca)
+      .order("data", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error("Erro ao buscar dados do sensor:", error);
+      return null;
+    }
+
+    if (!data?.valores) return null;
+
+    return {
+      frequencia: data.valores.frequencia,
+      latitude: data.valores.latitude,
+      longitude: data.valores.longitude,
+    };
+
+  } catch (err) {
+    console.error("Erro inesperado:", err);
+    return null;
+  }
+};
   
 
 
@@ -170,6 +204,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deletarPet,
         carregarPets,
         atualizarPet,
+        carregarDadosSensor,
       }}
     >
       {children}
