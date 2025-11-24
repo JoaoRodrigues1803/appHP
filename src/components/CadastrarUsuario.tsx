@@ -61,7 +61,7 @@ export const CadastrarUsuario: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>Cadastrar Usuário</CardTitle>
-            <CardDescription>Crie sua conta no PetCare</CardDescription>
+            <CardDescription>Crie sua conta no HealthPet</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
