@@ -1,24 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Pet, Usuario } from '../types';
-import supabase from '../db/dbConfig';
-import { User } from 'lucide-react';
 
 interface AppContextType {
   usuario: Usuario | null;
   pets: Pet[];
   isLoggedIn: boolean;
-  login: () => Promise<boolean>;
-  logout: () => Promise<void>;
-  cadastrarUsuario: (usuario: Omit<Usuario, 'id' | 'dataCadastro'>) => void;
-  atualizarUsuario: (usuario: Usuario) => void;
-  atualizarPet: (pet: Pet) => void;
-  deletarPet: (id: string) => void;
-  carregarPets: (authId?: string) => Promise<void>;
-  carregarDadosSensor: (macPlaca: string) => Promise<{
-    frequencia: any;
-    latitude: any;
-    longitude: any;
-  } | null>;
+  login: (email: string, senha: string) => Promise<boolean>;
+  logout: () => void;
+  cadastrarUsuario: (usuario: Omit<Usuario, 'id' | 'dataCadastro'>) => Promise<boolean>;
+  atualizarUsuario: (usuario: Usuario) => Promise<void>;
+  atualizarPet: (pet: Pet) => Promise<void>;
+  deletarPet: (id: number) => Promise<void>;
+  carregarPets: (usuarioId?: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -28,168 +21,137 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [pets, setPets] = useState<Pet[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-   // ====== carregarPets =================================================
-  const carregarPets = async (authId?: string) => {
+  // ======================
+  // LOGIN
+  // ======================
+  const login = async (email: string, senha: string): Promise<boolean> => {
     try {
-      const id = authId ?? usuario?.id;
-      if (!id) {
-        setPets([]);
-        return;
-      }
+      const res = await fetch(
+        `http://hpapi.alwaysdata.net/usuarios?email=${email}&senha=${senha}`
+      );
 
-      const { data, error } = await supabase
-        .from('pet')            // ajuste aqui se sua tabela tiver outro nome
-        .select('*')
-        .eq('tutor_auth', id);     // ajuste para 'tutor_id' se preferir filtrar pela FK da tabela usuarios
+      const data = await res.json();
 
-      if (error) {
-        console.error('Erro ao carregar pets:', error);
-        setPets([]);
-        return;
-      }
+      if (data.length === 0) return false;
 
-      setPets(data ?? []);
+      setUsuario(data[0]);
+      setIsLoggedIn(true);
+      localStorage.setItem("usuario", JSON.stringify(data[0]));
+
+      return true;
+
     } catch (err) {
-      console.error('Erro inesperado ao carregar pets:', err);
-      setPets([]);
-    }
-  };
-
-  // ================================
-  // DELETAR PET
-  // ================================
- const deletarPet = async (id: string) => {
-  const { error } = await supabase.from("pet").delete().eq("id", id);
-
-  if (error) {
-    console.error("Erro ao deletar pet:", error);
-    return;
-  }
-
-  setPets((prev) => prev.filter((p) => p.id !== id));
-};
-
-//atualizar pet ===============================
-  const atualizarPet = async (pet: Pet) => {
-  const { id, ...dadosAtualizados } = pet;
-
-  const { data, error } = await supabase
-    .from("pet")
-    .update(dadosAtualizados)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Erro ao atualizar pet:", error);
-    return;
-  }
-
-  setPets((prev) =>
-    prev.map((p) => (p.id === id ? data : p))
-  );
-};
-    // ============================
-  // 🔥 LOGIN REAL usando Supabase
-  // ============================
-  const login = async (): Promise<boolean> => {
-    const { data, error } = await supabase.auth.getUser();
-
-    if (error || !data?.user) {
-      setUsuario(null);
-      setIsLoggedIn(false);
+      console.error("Erro no login:", err);
       return false;
     }
-
-    // Pegando os dados do user
-    const user = data.user;
-
-    // Caso você tenha tabela "usuario" no Supabase
-    const { data: perfil } = await supabase
-      .from('usuario')
-      .select('*')
-      .eq('email', user.email)
-      .single();
-
-    const usuarioContexto: Usuario = {
-      id: user.id,
-      nome: perfil?.nome || user.user_metadata?.nome || "",
-      telefone: perfil?.telefone || "",
-      email: user.email!,
-      dataCadastro: perfil?.dataCadastro || new Date().toISOString().split("T")[0],
-    };
-
-    setUsuario(usuarioContexto);
-    setIsLoggedIn(true);
-    return true;
   };
 
-  // ============================
-  // 🔥 LOGOUT REAL
-  // ============================
-  const logout = async () => {
-    await supabase.auth.signOut();
+  // ======================
+  // LOGOUT
+  // ======================
+  const logout = () => {
     setUsuario(null);
-    // setPets([]);
     setIsLoggedIn(false);
+    localStorage.removeItem("usuario");
+    setPets([]);
   };
 
-  // ============================
-  // 🔥 CADASTRO LOCAL (para contexto)
-  // chamado após signUp na página
-  // ============================
-  const cadastrarUsuario = (novoUsuario: Omit<Usuario, 'id' | 'dataCadastro'>) => {
-    const usuario: Usuario = {
-      ...novoUsuario,
-      id: Date.now().toString(),
-      dataCadastro: new Date().toISOString().split('T')[0],
-    };
-    setUsuario(usuario);
-    setIsLoggedIn(true);
-  };
+  // ======================
+  // CADASTRAR USUÁRIO (POST)
+  // ======================
+  const cadastrarUsuario = async (
+    novoUsuario: Omit<Usuario, 'id' | 'dataCadastro'>
+  ): Promise<boolean> => {
+    try {
+      const body = {
+        ...novoUsuario,
+        dataCadastro: new Date().toISOString().split("T")[0],
+      };
 
-  const atualizarUsuario = (usuarioAtualizado: Usuario) => {
-    setUsuario(usuarioAtualizado);
-  };
+      const res = await fetch(`http://hpapi.alwaysdata.net/usuarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
-    // ============================
-  // 🔥 Persiste login ao recarregar a página
-  // ============================
-  useEffect(() => {
-    login();
-  }, []);
-  
-  //buscar dados sensor 
-  const carregarDadosSensor = async (macPlaca: string) => {
-  try {
-    const { data, error } = await supabase
-      .from("dados_sensor")
-      .select("valores")
-      .eq("mac_placa", macPlaca)
-      .order("data", { ascending: false })
-      .limit(1)
-      .single();
+      const criado = await res.json();
 
-    if (error) {
-      console.error("Erro ao buscar dados do sensor:", error);
-      return null;
+      setUsuario(criado);
+      setIsLoggedIn(true);
+      localStorage.setItem("usuario", JSON.stringify(criado));
+
+      return true;
+
+    } catch (err) {
+      console.error("Erro ao cadastrar usuário:", err);
+      return false;
     }
+  };
 
-    if (!data?.valores) return null;
+  // ======================
+  // ATUALIZAR USUÁRIO (PUT)
+  // ======================
+  const atualizarUsuario = async (usuarioAtualizado: Usuario) => {
+    if (!usuarioAtualizado.id) return;
 
-    return {
-      frequencia: data.valores.frequencia,
-      latitude: data.valores.latitude,
-      longitude: data.valores.longitude,
-    };
+    await fetch(`http://hpapi.alwaysdata.net/usuarios/${usuarioAtualizado.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(usuarioAtualizado),
+    });
 
-  } catch (err) {
-    console.error("Erro inesperado:", err);
-    return null;
-  }
-};
-  
+    setUsuario(usuarioAtualizado);
+    localStorage.setItem("usuario", JSON.stringify(usuarioAtualizado));
+  };
 
+  // ======================
+  // CARREGAR PETS
+  // ======================
+  const carregarPets = async (usuarioId?: number) => {
+    try {
+      const id = usuarioId ?? usuario?.id;
+      if (!id) return;
+
+      const res = await fetch(`http://hpapi.alwaysdata.net/pets?usuarioId=${id}`);
+      const data = await res.json();
+      setPets(data);
+
+    } catch (err) {
+      console.error("Erro ao carregar pets:", err);
+    }
+  };
+
+  // ======================
+  // ATUALIZAR PET
+  // ======================
+  const atualizarPet = async (pet: Pet) => {
+    await fetch(`http://hpapi.alwaysdata.net/pets/${pet.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pet),
+    });
+
+    setPets(prev => prev.map(p => Number(p.id) === Number(pet.id) ? pet : p));
+  };
+
+  // ======================
+  // DELETAR PET
+  // ======================
+  const deletarPet = async (id: number) => {
+    await fetch(`http://hpapi.alwaysdata.net/pets/${id}`, { method: "DELETE" });
+    setPets(prev => prev.filter(p => Number(p.id) !== id));
+  };
+
+  // ======================
+  // RESTAURA LOGIN
+  // ======================
+  useEffect(() => {
+    const saved = localStorage.getItem("usuario");
+    if (saved) {
+      setUsuario(JSON.parse(saved));
+      setIsLoggedIn(true);
+    }
+  }, []);
 
   return (
     <AppContext.Provider
@@ -204,7 +166,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deletarPet,
         carregarPets,
         atualizarPet,
-        carregarDadosSensor,
       }}
     >
       {children}
@@ -214,8 +175,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp deve ser usado dentro de um AppProvider');
-  }
+  if (!context) throw new Error('useApp deve ser usado dentro de um AppProvider');
   return context;
 };

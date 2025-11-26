@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import supabase from '../db/dbConfig';
 
 export const Header: React.FC = () => {
   const { isLoggedIn, usuario, logout } = useApp();

@@ -8,20 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
 import { Pet } from '../types';
-import supabase from '../db/dbConfig';
-
- 
 
 export const EditarPet: React.FC = () => {
-  
+
   const { id } = useParams<{ id: string }>();
-  const petId = Number(id); // converte para number
+  const petId = Number(id);
   const { pets, atualizarPet } = useApp();
   const navigate = useNavigate();
 
- const pet = pets.find((p) => Number(p.id) === petId);
+  const pet = pets.find(p => Number(p.id) === petId);
 
-
+  // STATES
   const [tipo, setTipo] = useState<'gato' | 'cachorro'>('cachorro');
   const [nome, setNome] = useState('');
   const [raca, setRaca] = useState('');
@@ -35,30 +32,31 @@ export const EditarPet: React.FC = () => {
   const [castrado, setCastrado] = useState<'sim' | 'nao'>('sim');
   const [mac, setMac] = useState('');
 
+  // ✅ PREENCHE OS CAMPOS SE O PET EXISTE
   useEffect(() => {
-    if (pet) {
-      setTipo(pet.tipo_animal);
-      setNome(pet.nome);
-      setRaca(pet.raca);
-      setPelagem(pet.pelagem);
-      setDataNascimento(pet.data_nascimento.split('T')[0]);
-      setPorte(pet.porte);
-      setPeso(pet.peso.toString());
-      setSexo(pet.sexo);
-      setVacinas(pet.vacinas ? 'sim' : 'nao');
-      setVermifugado(pet.vermifugado ? 'sim' : 'nao');
-      setCastrado(pet.castrado ? 'sim' : 'nao');
+    if (!pet) return;
 
-      setMac(pet.mac_placa || '');
-    }
+    setTipo(pet.tipo_animal);
+    setNome(pet.nome);
+    setRaca(pet.raca);
+    setPelagem(pet.pelagem);
+    setDataNascimento(pet.data_nascimento);
+    setPorte(pet.porte);
+    setPeso(pet.peso.toString());
+    setSexo(pet.sexo);
+    setVacinas(pet.vacinas ? 'sim' : 'nao');
+    setVermifugado(pet.vermifugado ? 'sim' : 'nao');
+    setCastrado(pet.castrado ? 'sim' : 'nao');
+    setMac(pet.mac_placa || '');
   }, [pet]);
 
+  // ✅ SE NÃO ACHAR PET — MAS SEM REDIRECIONAR
   if (!pet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 flex items-center justify-center">
         <Card>
-          <CardContent className="pt-6">
-            <p>Pet não encontrado</p>
+          <CardContent className="pt-6 text-center">
+            <p className="text-lg font-medium">Pet não encontrado</p>
             <Button onClick={() => navigate('/listar-pets')} className="mt-4">
               Voltar para lista
             </Button>
@@ -70,7 +68,7 @@ export const EditarPet: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!nome || !raca || !data_nascimento || !peso) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
@@ -82,17 +80,18 @@ export const EditarPet: React.FC = () => {
       nome,
       raca,
       pelagem,
-      data_nascimento: data_nascimento,
+      data_nascimento,
       porte,
       peso: parseFloat(peso),
       sexo,
       vacinas: vacinas === 'sim',
       vermifugado: vermifugado === 'sim',
       castrado: castrado === 'sim',
-      mac_placa: mac ,
+      mac_placa: mac,
     };
 
     await atualizarPet(petAtualizado);
+
     toast.success(`${nome} foi atualizado com sucesso!`);
     navigate('/listar-pets');
   };

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -14,32 +14,48 @@ export const PerfilUsuario: React.FC = () => {
   const navigate = useNavigate();
   const [editMode, setEditMode] = useState(false);
 
-  const [nome, setNome] = useState(usuario?.nome || '');
-  const [telefone, setTelefone] = useState(usuario?.telefone || '');
-  const [email, setEmail] = useState(usuario?.email || '');
+  const [nome, setNome] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [email, setEmail] = useState('');
 
-  if (!usuario) {
-    navigate('/login');
-    return null;
-  }
+  // ✅ garante preenchimento correto ao carregar usuário
+  useEffect(() => {
+    if (!usuario) return;
+    setNome(usuario.nome);
+    setTelefone(usuario.telefone);
+    setEmail(usuario.email);
+  }, [usuario]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ✅ não navegar dentro do render
+  useEffect(() => {
+    if (!usuario) navigate('/login');
+  }, [usuario, navigate]);
+
+  if (!usuario) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!nome || !telefone || !email) {
       toast.error('Preencha todos os campos');
       return;
     }
 
-    atualizarUsuario({
-      ...usuario,
-      nome,
-      telefone,
-      email,
-    });
-    
-    toast.success('Perfil atualizado com sucesso!');
-    setEditMode(false);
+    try {
+      await atualizarUsuario({
+        ...usuario,
+        nome,
+        telefone,
+        email,
+      });
+
+      toast.success('Perfil atualizado com sucesso!');
+      setEditMode(false);
+
+    } catch (err) {
+      toast.error('Erro ao atualizar perfil');
+      console.error(err);
+    }
   };
 
   const handleCancel = () => {
@@ -48,6 +64,7 @@ export const PerfilUsuario: React.FC = () => {
     setEmail(usuario.email);
     setEditMode(false);
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">

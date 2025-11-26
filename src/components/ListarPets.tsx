@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { Edit, Trash2, Activity, Dog, Cat } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,13 +18,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './ui/alert-dialog';
-import supabase from '../db/dbConfig';
-import { useEffect } from 'react';
 
 export const ListarPets = () => {
   const navigate = useNavigate();
 
-  // ✅ Aqui sim — hooks devem estar dentro do componente
+  // ✅ Agora vem do contexto já usando JSONServer
   const { pets, carregarPets, deletarPet } = useApp();
 
   useEffect(() => {
@@ -31,8 +30,12 @@ export const ListarPets = () => {
   }, []);
 
   const handleDelete = async (id: string, nome: string) => {
-    deletarPet(id);
-    toast.success(`${nome} foi removido da lista`);
+    try {
+      await deletarPet(Number(id));
+      toast.success(`${nome} foi removido com sucesso`);
+    } catch {
+      toast.error("Erro ao remover pet");
+    }
   };
 
   if (pets.length === 0) {

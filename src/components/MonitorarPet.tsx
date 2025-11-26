@@ -6,114 +6,115 @@ import { Badge } from './ui/badge';
 import { ArrowLeft, Heart, MapPin, Activity as ActivityIcon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import supabase from '../db/dbConfig';
 
 export const MonitorarPet: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { pets } = useApp();
 
-  const petId = Number(id); // 🔥 converte id para number compatível com banco
+  const petId = Number(id);
   const pet = pets.find(p => Number(p.id) === petId);
 
   const [batimentoAtual, setBatimentoAtual] = useState<number>(0);
   const [localizacao, setLocalizacao] = useState<{ latitude?: number; longitude?: number }>({});
   const [historico, setHistorico] = useState<Array<{ tempo: string; batimento: number }>>([]);
   const [historicoLocalizacao, setHistoricoLocalizacao] = useState<
-  Array<{ tempo: string; latitude: number; longitude: number }>
->([]);
+    Array<{ tempo: string; latitude: number; longitude: number }>
+  >([]);
   const [ultimaGravacao, setUltimaGravacao] = useState<number | null>(null);
 
-useEffect(() => {
-  if (!pet?.mac_placa) return;
+  // ============================
+  // BUSCAR DADOS DO JSON SERVER
+  // ============================
+  useEffect(() => {
+    if (!pet?.mac_placa) return;
 
-  let mounted = true;
-  let interval: any;
+    let mounted = true;
+    let interval: any;
 
-  const buscarDados = async () => {
-    const { data, error } = await supabase
-      .from("dados_sensor")
-      .select("valores, data")
-      .eq("mac_placa", pet.mac_placa)
-      .order("data", { ascending: false })
-      .limit(1);
-
-    if (error) {
-      console.error("Erro ao buscar dados do sensor:", error);
-      return;
-    }
-
-    if (!mounted || !data?.length) return;
-
-    // Parse segura do JSON
-    let valores = data[0].valores;
-    if (typeof valores === "string") {
+    const buscarDados = async () => {
       try {
-        valores = JSON.parse(valores);
-      } catch (err) {
-        console.error("Erro ao parsear JSON:", err);
-        return;
-      }
-    }
+        const res = await fetch(
+          `http://hpapi.alwaysdata.net/dados_sensor?mac_placa=${pet.mac_placa}&_sort=data&_order=desc&_limit=1`
+        );
 
-    // Atualizar valores principais
-    setBatimentoAtual(valores.frequencia);
-    setLocalizacao({
-      latitude: valores.latitude,
-      longitude: valores.longitude,
-    });
-    // Adicionar batimentos ao histórico (últimos 12 pontos)
-    setHistorico(prev => [
-      ...prev.slice(-11),
-      {
-        tempo: new Date(data[0].data).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        batimento: valores.frequencia,
-      },
-    ]);
+        const data = await res.json();
+        if (!mounted || !data?.length) return;
 
-    // --- Lógica dos 5 minutos ---
-    const agora = Date.now();
+        let valores = data[0].valores;
 
-    setUltimaGravacao(prevUltima => {
-      if (!prevUltima || agora - prevUltima >= 1 * 60 * 1000) {
-        const tempo = new Date(data[0].data).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
+        // JSON seguro
+        if (typeof valores === "string") {
+          try {
+            valores = JSON.parse(valores);
+          } catch (err) {
+            console.error("Erro ao parsear JSON:", err);
+            return;
+          }
+        }
 
+        // Atualiza batimento
+        setBatimentoAtual(valores.frequencia);
+
+        // Atualiza localização
+        setLocalizacao({
+          latitude: valores.latitude,
+          longitude: valores.longitude,
         });
 
-        setHistoricoLocalizacao(prev => [
+        // Atualiza gráfico (últimos 12)
+        setHistorico(prev => [
+          ...prev.slice(-11),
           {
-            tempo,
-            latitude: valores.latitude,
-            longitude: valores.longitude,
+            tempo: new Date(data[0].data).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
+            batimento: valores.frequencia,
           },
-          ...prev.slice(0, 19)
         ]);
 
-        return agora; // atualiza o timestamp
+        // Controle de registro de posição (1 min)
+        const agora = Date.now();
+
+        setUltimaGravacao(prevUltima => {
+          if (!prevUltima || agora - prevUltima >= 1 * 60 * 1000) {
+            const tempo = new Date(data[0].data).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+
+            setHistoricoLocalizacao(prev => [
+              {
+                tempo,
+                latitude: valores.latitude,
+                longitude: valores.longitude,
+              },
+              ...prev.slice(0, 19),
+            ]);
+
+            return agora;
+          }
+          return prevUltima;
+        });
+
+      } catch (err) {
+        console.error("Erro ao buscar dados do sensor:", err);
       }
+    };
 
-      return prevUltima;
-    });
-  };
+    buscarDados();
+    interval = setInterval(buscarDados, 30000);
 
-  buscarDados();
-  interval = setInterval(buscarDados, 30000);
-
-  return () => {
-    mounted = false;
-    clearInterval(interval);
-  };
-},  [petId]);
-
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [petId]);
   
 
-  if (!pet) {
+ if (!pet) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 flex items-center justify-center">
         <Card>
@@ -128,12 +129,7 @@ useEffect(() => {
     );
   }
 
-  
-  
-  const statusBatimento = batimentoAtual >= 60 && batimentoAtual <= 100 ? 'normal' : 'alerta';
-
-  
-
+  const statusBatimento = batimentoAtual >= 60 && batimentoAtual <= 100 ? "normal" : "alerta";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">

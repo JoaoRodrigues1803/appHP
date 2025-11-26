@@ -7,9 +7,6 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
-import { Pet } from '../types';
-import supabase from '../db/dbConfig';
-import { Usuario } from '../types';
 
 export const VincularPet: React.FC = () => {
   const [tipo, setTipo] = useState<'gato' | 'cachorro'>('cachorro');
@@ -24,73 +21,57 @@ export const VincularPet: React.FC = () => {
   const [vermifugado, setVermifugado] = useState('sim');
   const [castrado, setCastrado] = useState('sim');
   const [mac, setMac] = useState('');
-  const { usuario } = useApp();
 
-  // const { adicionarPet } = useApp();
+  const { usuario } = useApp();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!usuario) {
-    toast.error("Erro: nenhum usuário logado.");
-    return;
-  }
+    if (!usuario) {
+      toast.error("Erro: nenhum usuário logado.");
+      return;
+    }
 
-  // 1️⃣ Buscar o ID do usuário na tabela usuarios
-  const { data: userDB, error: userError } = await supabase
-    .from("usuario")
-    .select("id")
-    .eq("auth_id", usuario.id)        // ← auth_id vindo do login
-    .single();
+    if (!nome || !raca || !dataNascimento || !peso) {
+      toast.error("Preencha todos os campos obrigatórios");
+      return;
+    }
 
-  if (userError || !userDB) {
-    toast.error("Erro ao encontrar o usuário no banco de dados!");
-    console.log(userError);
-    return;
-  }
+    const novoPet = {
+      tutor_id: usuario.id, // ✅ agora pega direto do contexto
+      tipo_animal: tipo,
+      nome,
+      raca,
+      pelagem,
+      data_nascimento: dataNascimento,
+      porte,
+      peso: parseFloat(peso),
+      sexo,
+      vacinas: vacinado === 'sim',
+      vermifugado: vermifugado === 'sim',
+      castrado: castrado === 'sim',
+      mac_placa: mac || null,
+    };
 
-  const tutorId = userDB.id; // este é o ID da tabela "usuarios"
+    try {
+      const response = await fetch('http://hpapi.alwaysdata.net/pets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(novoPet),
+      });
 
-  if (!nome || !raca || !dataNascimento || !peso) {
-    toast.error("Preencha todos os campos obrigatórios");
-    return;
-  }
+      if (!response.ok) {
+        throw new Error('Erro ao salvar pet');
+      }
 
-  const novoPet = {
-    tutor_id: tutorId,
-    tutor_auth: usuario.id,
-    tipo_animal: tipo,
-    nome,
-    raca,
-    pelagem,
-    data_nascimento: dataNascimento,
-    porte,
-    peso: parseFloat(peso),
-    sexo,
-    vacinas: vacinado === 'sim',
-    vermifugado: vermifugado === 'sim',
-    castrado: castrado === 'sim',
-    mac_placa: mac || null,
+      toast.success(`${nome} foi cadastrado com sucesso!`);
+      navigate('/listar-pets');
+
+    } catch (error: any) {
+      toast.error("Erro ao salvar pet: " + error.message);
+    }
   };
-  console.log("Usuário logado:", usuario);
-console.log("ID do usuário:", usuario?.id);
-console.log("Novo pet a ser inserido:", novoPet);
-
-  const { data, error } = await supabase
-    .from("pet")
-    .insert(novoPet)
-    .select();
-
-  if (error) {
-    toast.error("Erro ao salvar pet: " + error.message);
-    return;
-  }
-
-
-  toast.success(`${nome} foi cadastrado com sucesso!`);
-  navigate("/listar-pets");
-};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">

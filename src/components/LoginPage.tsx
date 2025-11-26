@@ -6,43 +6,47 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
-import supabase from '../db/dbConfig';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const { login } = useApp();
+  const { cadastrarUsuario, atualizarUsuario } = useApp();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!email || !senha) {
-    toast.error('Preencha todos os campos');
-    return;
-  }
+    e.preventDefault();
 
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: senha,
-    });
-
-    if (error) {
-      toast.error('Erro ao fazer login: ' + error.message);
+    if (!email || !senha) {
+      toast.error('Preencha todos os campos');
       return;
     }
 
-    // 🔥 Login do Supabase DEU CERTO
-    toast.success('Login realizado com sucesso!');
-    login();
-    navigate('/');
+    try {
+      // ✅ consulta no json-server
+      const response = await fetch(
+        `http://hpapi.alwaysdata.net/usuarios?email=${email}&senha=${senha}`
+      );
 
-  } catch (err) {
-    toast.error('Erro ao fazer login');
-    console.error(err);
-  }
-};
+      const users = await response.json();
+
+      if (users.length === 0) {
+        toast.error('Usuário ou senha inválidos');
+        return;
+      }
+
+      const user = users[0];
+
+      // ✅ salva usuário no contexto
+      atualizarUsuario(user);
+
+      toast.success('Login realizado com sucesso!');
+      navigate('/');
+
+    } catch (err) {
+      toast.error('Erro ao fazer login');
+      console.error(err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">

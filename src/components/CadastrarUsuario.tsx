@@ -7,7 +7,6 @@ import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
-import supabase from '../db/dbConfig';
 
 export const CadastrarUsuario: React.FC = () => {
   const [nome, setNome] = useState('');
@@ -17,42 +16,38 @@ export const CadastrarUsuario: React.FC = () => {
   const { cadastrarUsuario } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = async(e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!nome || !telefone || !email || !senha) {
       toast.error('Preencha todos os campos');
       return;
     }
-    
-    //criando funcao de cadastro no supabase com autenticação
-         const { data, error } = await supabase.auth.signUp({
-            email,
-            password: senha,
-         });
-    
-        if (error) {
-          toast.error(`Erro ao cadastrar: ${error.message}`);
-          return;
-        }
-    
-        // Salva dados adicionais do perfil em uma tabela separada (ex: "profiles")
-        const userId = data?.user?.id;
-        if (userId) {
-          const { error: insertError } = await supabase
-            .from('usuario')
-            .insert([{ nome, telefone, email, senha }]);
-    
-          if (insertError) {
-            toast.error(`Erro ao salvar perfil: ${insertError.message}`);
-            return;
-          }
-        }
-        
-        
-        toast.success('Usuário cadastrado com sucesso!');
-        navigate('/');
-        cadastrarUsuario({ nome, telefone, email });
+
+    try {
+      const response = await fetch("http://hpapi.alwaysdata.net/usuarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome,
+          telefone,
+          email,
+          senha
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao salvar usuário");
+      }
+
+      toast.success("Usuário cadastrado com sucesso!");
+      cadastrarUsuario({ nome, telefone, email });
+      navigate("/");
+      
+    } catch (err) {
+      toast.error("Erro ao cadastrar usuário");
+      console.error(err);
+    }
   };
 
   return (
