@@ -17,7 +17,13 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
 
     const ok = await login(email, senha);
-
+    
+    // if (email == email ){
+    //   toast.success('login realizado');
+    //   navigate('/', { replace: true });
+    //   return;
+    // }
+      
     if (!ok) {
       toast.error('Usuário ou senha inválidos');
       return;

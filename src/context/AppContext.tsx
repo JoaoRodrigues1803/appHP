@@ -25,12 +25,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // LOGIN
   // ======================
   const login = async (email: string, senha: string): Promise<boolean> => {
+    console.log(`http://hpapi.alwaysdata.net/usuarios?email=${email}&senha=${senha}`)
     try {
       const res = await fetch(
         `http://hpapi.alwaysdata.net/usuarios?email=${email}&senha=${senha}`
       );
 
       const data = await res.json();
+
+      console.log(data)
 
       if (data.length === 0) return false;
 
