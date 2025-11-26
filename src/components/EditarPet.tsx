@@ -13,7 +13,7 @@ export const EditarPet: React.FC = () => {
 
   const { id } = useParams<{ id: string }>();
   const petId = Number(id);
-  const { pets, atualizarPet } = useApp();
+  const { pets, atualizarPet, usuario} = useApp();
   const navigate = useNavigate();
 
   const pet = pets.find(p => Number(p.id) === petId);
@@ -69,31 +69,38 @@ export const EditarPet: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!usuario) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
     if (!nome || !raca || !data_nascimento || !peso) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
-    const petAtualizado: Pet = {
-      id: pet.id,
-      tipo_animal: tipo,
-      nome,
-      raca,
-      pelagem,
-      data_nascimento,
-      porte,
-      peso: parseFloat(peso),
-      sexo,
-      vacinas: vacinas === 'sim',
-      vermifugado: vermifugado === 'sim',
-      castrado: castrado === 'sim',
-      mac_placa: mac,
-    };
+      const petAtualizado: Pet = {
+        id: pet.id,
+        tutor_id: parseInt(usuario.id),
+        tipo_animal: tipo,
+        nome,
+        raca,
+        pelagem,
+        data_nascimento,
+        porte,
+        peso: parseFloat(peso),
+        sexo,
+        vacinas: vacinas === 'sim',
+        vermifugado: vermifugado === 'sim',
+        castrado: castrado === 'sim',
+        mac_placa: mac,
+        
+      };
 
-    await atualizarPet(petAtualizado);
+      await atualizarPet(petAtualizado);
 
-    toast.success(`${nome} foi atualizado com sucesso!`);
-    navigate('/listar-pets');
+      toast.success(`${nome} foi atualizado com sucesso!`);
+      navigate('/listar-pets');
   };
 
   return (

@@ -1,5 +1,6 @@
 export interface Pet {
   id: string;
+  tutor_id: number
   tipo_animal: 'gato' | 'cachorro';
   nome: string;
   raca: string;
