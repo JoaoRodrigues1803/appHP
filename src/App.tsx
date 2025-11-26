@@ -11,7 +11,6 @@ import { EditarPet } from './components/EditarPet';
 import { MonitorarPet } from './components/MonitorarPet';
 import { PerfilUsuario } from './components/PerfilUsuario';
 import { Toaster } from './components/ui/sonner';
-import supabase from './db/dbConfig';
 
 export default function App() {
   return (

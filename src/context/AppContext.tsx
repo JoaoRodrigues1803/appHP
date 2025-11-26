@@ -9,9 +9,9 @@ interface AppContextType {
   logout: () => void;
   cadastrarUsuario: (usuario: Omit<Usuario, 'id' | 'dataCadastro'>) => Promise<boolean>;
   atualizarUsuario: (usuario: Usuario) => Promise<void>;
+  carregarPets: (usuarioId?: number) => Promise<void>;
   atualizarPet: (pet: Pet) => Promise<void>;
   deletarPet: (id: number) => Promise<void>;
-  carregarPets: (usuarioId?: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -57,7 +57,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // ======================
-  // CADASTRAR USUÁRIO (POST)
+  // CADASTRAR USUÁRIO
   // ======================
   const cadastrarUsuario = async (
     novoUsuario: Omit<Usuario, 'id' | 'dataCadastro'>
@@ -89,7 +89,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // ======================
-  // ATUALIZAR USUÁRIO (PUT)
+  // ATUALIZAR USUÁRIO
   // ======================
   const atualizarUsuario = async (usuarioAtualizado: Usuario) => {
     if (!usuarioAtualizado.id) return;
@@ -142,13 +142,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setPets(prev => prev.filter(p => Number(p.id) !== id));
   };
 
-  // ======================
-  // RESTAURA LOGIN
-  // ======================
+  // ✅ RESTAURA LOGIN AUTOMATICAMENTE
   useEffect(() => {
-    const saved = localStorage.getItem("usuario");
-    if (saved) {
-      setUsuario(JSON.parse(saved));
+    const stored = localStorage.getItem("usuario");
+    if (stored) {
+      const user = JSON.parse(stored);
+      setUsuario(user);
       setIsLoggedIn(true);
     }
   }, []);
@@ -163,9 +162,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         logout,
         cadastrarUsuario,
         atualizarUsuario,
-        deletarPet,
         carregarPets,
         atualizarPet,
+        deletarPet,
       }}
     >
       {children}

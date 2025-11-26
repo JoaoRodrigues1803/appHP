@@ -10,45 +10,24 @@ import { toast } from 'sonner';
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const { cadastrarUsuario, atualizarUsuario } = useApp();
+  const { login } = useApp();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !senha) {
-      toast.error('Preencha todos os campos');
+    const ok = await login(email, senha);
+
+    if (!ok) {
+      toast.error('Usuário ou senha inválidos');
       return;
     }
 
-    try {
-      // ✅ consulta no json-server
-      const response = await fetch(
-        `http://hpapi.alwaysdata.net/usuarios?email=${email}&senha=${senha}`
-      );
-
-      const users = await response.json();
-
-      if (users.length === 0) {
-        toast.error('Usuário ou senha inválidos');
-        return;
-      }
-
-      const user = users[0];
-
-      // ✅ salva usuário no contexto
-      atualizarUsuario(user);
-
-      toast.success('Login realizado com sucesso!');
-      navigate('/');
-
-    } catch (err) {
-      toast.error('Erro ao fazer login');
-      console.error(err);
-    }
+    toast.success('Login realizado com sucesso!');
+    navigate('/', { replace: true });
   };
 
-  return (
+   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>

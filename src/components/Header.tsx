@@ -16,6 +16,11 @@ export const Header: React.FC = () => {
     setSheetOpen(false);
   };
 
+  // ✅ fallback seguro para inicial do avatar
+  const inicial = usuario?.nome
+    ? usuario.nome.trim().charAt(0).toUpperCase()
+    : "?";
+
   return (
     <header className="bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4 shadow-lg">
       <div className="container mx-auto flex items-center justify-between">
