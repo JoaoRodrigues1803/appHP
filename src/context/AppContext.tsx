@@ -113,9 +113,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const carregarPets = async (usuarioId?: number) => {
     try {
       const id = usuarioId ?? usuario?.id;
+      
       if (!id) return;
 
-      const res = await fetch(`http://hpapi.alwaysdata.net/pets?usuarioId=${id}`);
+      const res = await fetch(`http://hpapi.alwaysdata.net/pets?tutor_id=${id}`);
       const data = await res.json();
       setPets(data);
 
