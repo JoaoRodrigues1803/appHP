@@ -49,7 +49,8 @@
             "server": "^1.0.42",
             "sonner": "^2.0.3",
             "tailwind-merge": "*",
-            "vaul": "^1.1.2"
+            "vaul": "^1.1.2",
+            "serve": "^14.1.2"
       },
       "devDependencies": {
             "@types/node": "^20.10.0",
@@ -60,7 +61,6 @@
         "scripts": {
             "dev": "vite",
             "build": "vite build",
-            "preview": "vite preview --port $PORT --host",
-            "start": "npm run build && vite preview --port $PORT --host"
+            "start": "npm run build && serve -s dist -l $PORT"
       }
 }

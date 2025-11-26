@@ -55,7 +55,7 @@
       outDir: 'build',
     },
     server: {
-      port: Number(process.env.PORT || 3000),
+      port: parseInt(process.env.PORT || '3000', 10),
       open: true,
     },
   });
