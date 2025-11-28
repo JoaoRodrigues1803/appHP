@@ -16,107 +16,120 @@ export const MonitorarPet: React.FC = () => {
   const pet = pets.find(p => Number(p.id) === petId);
 
   const [batimentoAtual, setBatimentoAtual] = useState<number>(0);
-  const [localizacao, setLocalizacao] = useState<{ latitude?: number; longitude?: number }>({});
   const [historico, setHistorico] = useState<Array<{ tempo: string; batimento: number }>>([]);
+
+  const [localizacao, setLocalizacao] = useState<{ latitude?: number; longitude?: number }>({});
   const [historicoLocalizacao, setHistoricoLocalizacao] = useState<
     Array<{ tempo: string; latitude: number; longitude: number }>
   >([]);
   const [ultimaGravacao, setUltimaGravacao] = useState<number | null>(null);
 
-  // ============================
-  // BUSCAR DADOS DO JSON SERVER
-  // ============================
+  // ============================================================
+  // 🔥 1) GERAR BATIMENTOS ALEATÓRIOS (80 a 110, maioria > 90)
+  // ============================================================
+  const gerarBatimento = () => {
+    const prob = Math.random();
+
+    if (prob < 0.70) {
+      // 70% chance: valores mais altos
+      return Math.floor(Math.random() * (110 - 95 + 1)) + 95;
+    } else {
+      // 30% chance: faixa total
+      return Math.floor(Math.random() * (110 - 80 + 1)) + 80;
+    }
+  };
+
+  // Atualiza batimento a cada 10s
+  useEffect(() => {
+    const gerar = () => {
+      const novo = gerarBatimento();
+      setBatimentoAtual(novo);
+
+      const tempo = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+
+      setHistorico(prev => [
+        ...prev.slice(-11),
+        { tempo, batimento: novo }
+      ]);
+    };
+
+    gerar();
+    const interval = setInterval(gerar, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // ============================================
+  // 📍 2) LOCALIZAÇÃO MANTÉM USANDO JSON SERVER
+  // ============================================
   useEffect(() => {
     if (!pet?.mac_placa) return;
 
-    let mounted = true;
-    let interval: any;
+    let ativo = true;
 
-    const buscarDados = async () => {
+    const buscarLocal = async () => {
       try {
         const res = await fetch(
           `http://hpapi.alwaysdata.net/dados_sensor?mac_placa=${pet.mac_placa}&_sort=data&_order=desc&_limit=1`
         );
 
         const data = await res.json();
-        if (!mounted || !data?.length) return;
+        if (!ativo || !data?.length) return;
 
         let valores = data[0].valores;
+        if (typeof valores === "string") valores = JSON.parse(valores);
 
-        // JSON seguro
-        if (typeof valores === "string") {
-          try {
-            valores = JSON.parse(valores);
-          } catch (err) {
-            console.error("Erro ao parsear JSON:", err);
-            return;
-          }
-        }
-
-        // Atualiza batimento
-        setBatimentoAtual(valores.frequencia);
-
-        // Atualiza localização
         setLocalizacao({
           latitude: valores.latitude,
           longitude: valores.longitude,
         });
 
-        // Atualiza gráfico (últimos 12)
-        setHistorico(prev => [
-          ...prev.slice(-11),
-          {
-            tempo: new Date(data[0].data).toLocaleTimeString("pt-BR", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            }),
-            batimento: valores.frequencia,
-          },
-        ]);
-
-        // Controle de registro de posição (1 min)
         const agora = Date.now();
-
-        setUltimaGravacao(prevUltima => {
-          if (!prevUltima || agora - prevUltima >= 1 * 60 * 1000) {
-            const tempo = new Date(data[0].data).toLocaleTimeString("pt-BR", {
+        setUltimaGravacao(prev => {
+          if (!prev || agora - prev >= 60000) {
+            const tempo = new Date().toLocaleTimeString("pt-BR", {
               hour: "2-digit",
-              minute: "2-digit",
+              minute: "2-digit"
             });
 
-            setHistoricoLocalizacao(prev => [
+            setHistoricoLocalizacao(h => [
               {
                 tempo,
                 latitude: valores.latitude,
-                longitude: valores.longitude,
+                longitude: valores.longitude
               },
-              ...prev.slice(0, 19),
+              ...h.slice(0, 19)
             ]);
 
             return agora;
           }
-          return prevUltima;
+          return prev;
         });
 
-      } catch (err) {
-        console.error("Erro ao buscar dados do sensor:", err);
+      } catch (e) {
+        console.error("Erro ao buscar localização:", e);
       }
     };
 
-    buscarDados();
-    interval = setInterval(buscarDados, 30000);
+    buscarLocal();
+    const interval = setInterval(buscarLocal, 30000);
 
     return () => {
-      mounted = false;
+      ativo = false;
       clearInterval(interval);
     };
-  }, [petId]);
-  
+  }, [pet?.mac_placa]);
 
- if (!pet) {
+  // ===================================================
+  // SE PET NÃO EXISTE
+  // ===================================================
+  if (!pet) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 flex items-center justify-center">
+      <div className="min-h-screen p-4 flex items-center justify-center">
         <Card>
           <CardContent className="pt-6">
             <p>Pet não encontrado</p>
@@ -129,16 +142,13 @@ export const MonitorarPet: React.FC = () => {
     );
   }
 
-  const statusBatimento = batimentoAtual >= 60 && batimentoAtual <= 100 ? "normal" : "alerta";
+  const statusBatimento =
+    batimentoAtual >= 60 && batimentoAtual <= 100 ? "normal" : "alerta";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
       <div className="container mx-auto max-w-6xl py-8">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/listar-pets')}
-          className="mb-6"
-        >
+        <Button variant="ghost" onClick={() => navigate('/listar-pets')} className="mb-6">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Voltar
         </Button>
@@ -148,6 +158,9 @@ export const MonitorarPet: React.FC = () => {
           <p className="text-gray-600">{pet.raca} • {pet.porte}</p>
         </div>
 
+        {/* ================================== */}
+        {/* CARD DE BATIMENTOS */}
+        {/* ================================== */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           <Card>
             <CardHeader>
@@ -158,9 +171,7 @@ export const MonitorarPet: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <div className="text-6xl mb-2 text-blue-500 animate-pulse">
-                  {batimentoAtual}
-                </div>
+                <div className="text-6xl mb-2 text-blue-500 animate-pulse">{batimentoAtual}</div>
                 <div className="text-gray-600 mb-4">BPM</div>
                 <Badge variant={statusBatimento === 'normal' ? 'default' : 'destructive'}>
                   {statusBatimento === 'normal' ? 'Normal' : 'Atenção'}
@@ -169,6 +180,9 @@ export const MonitorarPet: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* ================================== */}
+          {/* CARD DE LOCALIZAÇÃO */}
+          {/* ================================== */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -179,14 +193,11 @@ export const MonitorarPet: React.FC = () => {
             <CardContent>
               <div className="relative text-center z-10">
                 <MapPin className="h-12 w-12 text-green-500 mx-auto mb-2 animate-bounce" />
+
                 {localizacao.latitude && localizacao.longitude ? (
                   <>
-                    <p className="text-sm text-gray-700">
-                      Lat: {localizacao.latitude.toFixed(6)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Lng: {localizacao.longitude.toFixed(6)}
-                    </p>
+                    <p className="text-sm text-gray-700">Lat: {localizacao.latitude.toFixed(6)}</p>
+                    <p className="text-xs text-gray-500">Lng: {localizacao.longitude.toFixed(6)}</p>
 
                     <div className="mt-3 w-full h-40 rounded-lg overflow-hidden border">
                       <iframe
@@ -196,7 +207,7 @@ export const MonitorarPet: React.FC = () => {
                         allowFullScreen
                         referrerPolicy="no-referrer-when-downgrade"
                         src={`https://www.google.com/maps?q=${localizacao.latitude},${localizacao.longitude}&z=16&output=embed`}
-                      ></iframe>
+                      />
                     </div>
 
                     <Badge className="mt-2 bg-blue-500">Posição Atual</Badge>
@@ -209,6 +220,9 @@ export const MonitorarPet: React.FC = () => {
           </Card>
         </div>
 
+        {/* ================================== */}
+        {/* HISTÓRICO DE BATIMENTOS */}
+        {/* ================================== */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -216,13 +230,14 @@ export const MonitorarPet: React.FC = () => {
               Histórico de Batimentos (Última Hora)
             </CardTitle>
           </CardHeader>
+
           <CardContent>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={historico}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="tempo" />
-                  <YAxis domain={[60, 120]} />
+                  <YAxis domain={[60, 130]} />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -230,17 +245,17 @@ export const MonitorarPet: React.FC = () => {
                     stroke="#8b5cf6"
                     strokeWidth={2}
                     dot={{ fill: '#8b5cf6', r: 4 }}
-                    activeDot={{ r: 6 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </div>
             <div className="mt-4 text-center text-sm text-gray-500">
-              Atualização em tempo real a cada 30 segundos
+              Atualização automática a cada 5 segundos
             </div>
           </CardContent>
         </Card>
 
+        {/* HISTÓRICO DE LOCALIZAÇÃO */}
         <Card className="mt-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -248,7 +263,6 @@ export const MonitorarPet: React.FC = () => {
               Histórico de Posições
             </CardTitle>
           </CardHeader>
-
           <CardContent>
             {historicoLocalizacao.length === 0 ? (
               <p className="text-sm text-gray-500">Nenhuma posição registrada ainda...</p>
@@ -256,13 +270,8 @@ export const MonitorarPet: React.FC = () => {
               <div className="space-y-4">
                 {historicoLocalizacao.map((pos, index) => (
                   <div key={index} className="relative pl-6 border-l border-gray-200">
-                    {/* Marcador */}
                     <div className="absolute left-[-6px] top-1 w-3 h-3 bg-green-500 rounded-full shadow" />
-
-                    <p className="text-sm font-medium text-gray-800">
-                      {pos.tempo}
-                    </p>
-
+                    <p className="text-sm font-medium text-gray-800">{pos.tempo}</p>
                     <p className="text-xs text-gray-500">
                       {pos.latitude.toFixed(6)}, {pos.longitude.toFixed(6)}
                     </p>
